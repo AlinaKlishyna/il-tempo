@@ -25,13 +25,14 @@ public class Parser {
     // \\d{1,2}/\\d{1,2}    \\d - цифровой символ  \\d{1,2} - цифровой символ от 1 до 2
     private static Pattern PATTERN_DATE = Pattern.compile("\\d{1,2}/\\d{1,2}");
 
-    private static List<String> groupDatesTwoWeek = new ArrayList<>();
+    private static List<String> groupDatesWeek = new ArrayList<>();
+
+    private static List<List<String>> daysInfoMore = new ArrayList<>();
 
     public static void main(String[] args) throws Exception {
         Document page = getPage();
-
-//        System.out.println(getDateToday(page));
-     getTwoWeeks(page);
+        getDatesWeek(page);
+        getListInfoMore(page);
         getWeatherInfo();
     }
 
@@ -59,15 +60,19 @@ public class Parser {
         throw new Exception("Can't extract date from string!");
     }
 
-    private static List<String> getTwoWeeks(Document page) throws Exception {
+    private static List<String> getDatesWeek(Document page) throws Exception {
         Element containerDates = page.select("div[class=forecast-container]").first();
         Elements currentDate = containerDates.select("li[class=\"\"]").select("span");
         Matcher matcher = PATTERN_DATE.matcher(currentDate.text());
+        int week = 1;
         while (matcher.find()) {
-            groupDatesTwoWeek.add(formatDate(matcher.group()));
+            if (week <= 7) {
+                groupDatesWeek.add(formatDate(matcher.group()));
+            }
+            week++;
         }
-        if (!groupDatesTwoWeek.isEmpty()) {
-            return groupDatesTwoWeek;
+        if (!groupDatesWeek.isEmpty()) {
+            return groupDatesWeek;
         }
         throw new Exception("Can't extract date from string!");
     }
@@ -85,10 +90,34 @@ public class Parser {
     }
 
     private static void getWeatherInfo() {
-        System.out.printf("%-30S| %-10S| %-10S| %-10S| %-20S| %-10S%n", "giorno", "tempo previsto", "min °C", "max °C", "precipitazioni", "vento km/h");
+        System.out.printf("%-30S| %-20S| %-20S| %-20S| %-20S| %-20S%n", "giorno", "tempo previsto",
+                "min °C", "max °C", "precipitazioni", "vento km/h");
+        for (int i = 0; i < groupDatesWeek.size(); i++) {
+            for (List<String> infoMore : daysInfoMore) {
+                System.out.printf("%-30S| ", groupDatesWeek.get(i++));
+                toString(infoMore);
+                System.out.println();
+            }
+        }
+    }
 
-        for (String line : groupDatesTwoWeek) {
-            System.out.printf("%-30s|%n",line);
+    private static List<List<String>> getListInfoMore(Document page) {
+        Elements container = page.select("div[class=forecast-content]").first().select("tr").
+                next().select("tr").select("td").not("td[class=\"giorno\"]");
+        List<String> day = new ArrayList<>();
+        for (Element item : container) {
+            day.add(item.text());
+            if (day.size() == 5) {
+                daysInfoMore.add(day);
+                day = new ArrayList<>();
+            }
+        }
+        return daysInfoMore;
+    }
+
+    public static void toString(List<String> list) {
+        for (String line : list) {
+            System.out.printf("%-20s| ", line);
         }
     }
 }
